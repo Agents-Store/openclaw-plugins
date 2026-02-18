@@ -1,0 +1,26 @@
+{
+  "id": "deep-research",
+  "name": "Deep Research",
+  "description": "Multi-service deep internet research plugin using Exa.ai, Firecrawl, and Perplexity for maximum search coverage",
+  "version": "0.1.0",
+  "skills": ["skills/deep-research"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "exaApiKey": { "type": "string" },
+      "firecrawlApiKey": { "type": "string" },
+      "perplexityApiKey": { "type": "string" },
+      "defaultNumResults": { "type": "number", "default": 20 },
+      "defaultLanguage": { "type": "string", "default": "en" }
+    },
+    "required": ["exaApiKey", "firecrawlApiKey", "perplexityApiKey"]
+  },
+  "uiHints": {
+    "exaApiKey": { "label": "Exa.ai API Key", "sensitive": true },
+    "firecrawlApiKey": { "label": "Firecrawl API Key", "sensitive": true },
+    "perplexityApiKey": { "label": "Perplexity API Key", "sensitive": true },
+    "defaultNumResults": { "label": "Default results per service", "placeholder": "20" },
+    "defaultLanguage": { "label": "Language preference", "placeholder": "en" }
+  }
+}

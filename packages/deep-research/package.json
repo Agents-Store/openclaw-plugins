@@ -1,0 +1,32 @@
+{
+  "name": "@agents-store/deep-research",
+  "version": "0.1.0",
+  "description": "Multi-service deep internet research plugin using Exa.ai, Firecrawl, and Perplexity",
+  "license": "MIT",
+  "author": "Agents Store <hello@agents.store>",
+  "homepage": "https://github.com/Agents-Store/openclaw-plugins/tree/main/packages/deep-research",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Agents-Store/openclaw-plugins.git",
+    "directory": "packages/deep-research"
+  },
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "agents-store",
+    "deep-research",
+    "exa",
+    "firecrawl",
+    "perplexity",
+    "search"
+  ],
+  "openclaw": {
+    "extensions": ["./src/index.ts"]
+  },
+  "files": [
+    "src/",
+    "skills/",
+    "openclaw.plugin.json",
+    "README.md"
+  ]
+}
