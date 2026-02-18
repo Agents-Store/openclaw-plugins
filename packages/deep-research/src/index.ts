@@ -14,21 +14,22 @@ import { FIND_SIMILAR_DEF, createFindSimilar } from "./tools/find-similar";
 export default function register(api: any) {
   const config = api.config?.plugins?.entries?.["deep-research"]?.config ?? {};
 
-  const exaApiKey = config.exaApiKey;
-  const firecrawlApiKey = config.firecrawlApiKey;
-  const perplexityApiKey = config.perplexityApiKey;
+  // API keys: config takes priority, env variables as fallback
+  const exaApiKey = config.exaApiKey || process.env.EXA_API_KEY || "";
+  const firecrawlApiKey = config.firecrawlApiKey || process.env.FIRECRAWL_API_KEY || "";
+  const perplexityApiKey = config.perplexityApiKey || process.env.PERPLEXITY_API_KEY || "";
   const defaultNumResults = config.defaultNumResults ?? 20;
   const defaultLanguage = config.defaultLanguage ?? "en";
 
   // Validate API keys
   const missing: string[] = [];
-  if (!exaApiKey) missing.push("exaApiKey");
-  if (!firecrawlApiKey) missing.push("firecrawlApiKey");
-  if (!perplexityApiKey) missing.push("perplexityApiKey");
+  if (!exaApiKey) missing.push("exaApiKey (or env EXA_API_KEY)");
+  if (!firecrawlApiKey) missing.push("firecrawlApiKey (or env FIRECRAWL_API_KEY)");
+  if (!perplexityApiKey) missing.push("perplexityApiKey (or env PERPLEXITY_API_KEY)");
 
   if (missing.length > 0) {
     api.logger?.warn?.(
-      `[deep-research] Missing API keys: ${missing.join(", ")}. Configure them in plugin settings.`
+      `[deep-research] Missing API keys: ${missing.join(", ")}. Configure in Control UI, openclaw.json, or environment variables.`
     );
   }
 
@@ -102,19 +103,29 @@ export default function register(api: any) {
     acceptsArgs: false,
     requireAuth: true,
     handler: () => {
+      const keySource = (cfgVal: string, envName: string) => {
+        if (cfgVal && config[cfgVal === exaApiKey ? "exaApiKey" : cfgVal === firecrawlApiKey ? "firecrawlApiKey" : "perplexityApiKey"])
+          return "config";
+        if (process.env[envName]) return "env";
+        return null;
+      };
+
       const exaOk = !!exaApiKey;
       const fcOk = !!firecrawlApiKey;
       const ppOk = !!perplexityApiKey;
       const allOk = exaOk && fcOk && ppOk;
 
+      const status = (ok: boolean, src: string | null) =>
+        ok ? `configured (${src})` : "MISSING";
+
       return {
         text: [
-          `Deep Research Plugin Status`,
+          `Deep Research Plugin v0.1.2`,
           ``,
           `API Keys:`,
-          `  Exa.ai:     ${exaOk ? "configured" : "MISSING"}`,
-          `  Firecrawl:  ${fcOk ? "configured" : "MISSING"}`,
-          `  Perplexity: ${ppOk ? "configured" : "MISSING"}`,
+          `  Exa.ai:     ${status(exaOk, keySource(exaApiKey, "EXA_API_KEY"))}`,
+          `  Firecrawl:  ${status(fcOk, keySource(firecrawlApiKey, "FIRECRAWL_API_KEY"))}`,
+          `  Perplexity: ${status(ppOk, keySource(perplexityApiKey, "PERPLEXITY_API_KEY"))}`,
           ``,
           `Settings:`,
           `  Default results/service: ${defaultNumResults}`,
@@ -122,7 +133,7 @@ export default function register(api: any) {
           ``,
           allOk
             ? "All services ready. 8 search tools available."
-            : "WARNING: Some API keys are missing. Configure them in plugin settings.",
+            : "WARNING: Missing keys. Set in Control UI, openclaw.json, or env vars (EXA_API_KEY, FIRECRAWL_API_KEY, PERPLEXITY_API_KEY).",
           ``,
           `Available tools: deep_search, deep_research, mass_summary, date_search, compare_offers, scrape_and_extract, site_search, find_similar`,
         ].join("\n"),

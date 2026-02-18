@@ -2,23 +2,23 @@
   "id": "deep-research",
   "name": "Deep Research",
   "description": "Multi-service deep internet research plugin using Exa.ai, Firecrawl, and Perplexity for maximum search coverage",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "skills": ["skills/deep-research"],
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
     "properties": {
-      "exaApiKey": { "type": "string" },
-      "firecrawlApiKey": { "type": "string" },
-      "perplexityApiKey": { "type": "string" },
+      "exaApiKey": { "type": "string", "default": "" },
+      "firecrawlApiKey": { "type": "string", "default": "" },
+      "perplexityApiKey": { "type": "string", "default": "" },
       "defaultNumResults": { "type": "number", "default": 20 },
       "defaultLanguage": { "type": "string", "default": "en" }
     }
   },
   "uiHints": {
-    "exaApiKey": { "label": "Exa.ai API Key", "sensitive": true },
-    "firecrawlApiKey": { "label": "Firecrawl API Key", "sensitive": true },
-    "perplexityApiKey": { "label": "Perplexity API Key", "sensitive": true },
+    "exaApiKey": { "label": "Exa.ai API Key", "sensitive": true, "placeholder": "Get key at https://dashboard.exa.ai/api-keys" },
+    "firecrawlApiKey": { "label": "Firecrawl API Key", "sensitive": true, "placeholder": "Get key at https://firecrawl.dev/app/api-keys" },
+    "perplexityApiKey": { "label": "Perplexity API Key", "sensitive": true, "placeholder": "Get key at https://perplexity.ai/settings/api" },
     "defaultNumResults": { "label": "Default results per service", "placeholder": "20" },
     "defaultLanguage": { "label": "Language preference", "placeholder": "en" }
   }
