@@ -86,11 +86,34 @@ export function formatComparison(
 }
 
 /**
- * Format errors from parallel execution.
+ * Format errors from parallel execution — shown prominently at the TOP, not hidden.
  */
 export function formatErrors(errors: string[]): string {
   if (errors.length === 0) return "";
-  return `\n---\n**Service warnings:** ${errors.join("; ")}`;
+
+  const lines: string[] = [
+    `\n---`,
+    `**WARNING: ${errors.length} service(s) failed:**\n`,
+  ];
+
+  for (const err of errors) {
+    lines.push(`- ${err}`);
+  }
+
+  lines.push("");
+  return lines.join("\n");
+}
+
+/**
+ * Format service status header — shows which services contributed to results.
+ */
+export function formatServiceStatus(services: {
+  exa: boolean;
+  firecrawl: boolean;
+  perplexity: boolean;
+}): string {
+  const mark = (ok: boolean) => ok ? "OK" : "FAILED";
+  return `**Services:** Exa: ${mark(services.exa)} | Firecrawl: ${mark(services.firecrawl)} | Perplexity: ${mark(services.perplexity)}\n`;
 }
 
 function countSources(results: MergedResult[]): number {

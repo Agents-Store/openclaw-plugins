@@ -55,10 +55,19 @@ export interface ExaAnswerResponse {
   citations: ExaSearchResult[];
 }
 
+export type Logger = {
+  debug?: (...args: any[]) => void;
+  info?: (...args: any[]) => void;
+  warn?: (...args: any[]) => void;
+  error?: (...args: any[]) => void;
+};
+
 export class ExaClient {
-  constructor(private apiKey: string) {}
+  constructor(private apiKey: string, private logger?: Logger) {}
 
   private async request<T>(endpoint: string, body: Record<string, any>): Promise<T> {
+    this.logger?.debug?.(`[Exa] POST ${endpoint}`, JSON.stringify(body).slice(0, 500));
+
     const res = await fetch(`${BASE_URL}${endpoint}`, {
       method: "POST",
       headers: {
@@ -70,10 +79,15 @@ export class ExaClient {
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      throw new Error(`Exa API ${endpoint} failed (${res.status}): ${errText.slice(0, 200)}`);
+      const msg = `Exa API ${endpoint} failed (${res.status}): ${errText.slice(0, 500)}`;
+      this.logger?.error?.(`[Exa] ${msg}`);
+      throw new Error(msg);
     }
 
-    return res.json() as Promise<T>;
+    const json = await res.json() as T;
+    const resultCount = Array.isArray((json as any)?.results) ? (json as any).results.length : "?";
+    this.logger?.debug?.(`[Exa] ${endpoint} OK — ${resultCount} results`);
+    return json;
   }
 
   async search(query: string, options: ExaSearchOptions = {}): Promise<ExaSearchResponse> {

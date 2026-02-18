@@ -68,10 +68,19 @@ export interface FirecrawlMapResult {
   links: { url: string; title?: string; description?: string }[];
 }
 
+export type Logger = {
+  debug?: (...args: any[]) => void;
+  info?: (...args: any[]) => void;
+  warn?: (...args: any[]) => void;
+  error?: (...args: any[]) => void;
+};
+
 export class FirecrawlClient {
-  constructor(private apiKey: string) {}
+  constructor(private apiKey: string, private logger?: Logger) {}
 
   private async request<T>(endpoint: string, body: Record<string, any>): Promise<T> {
+    this.logger?.debug?.(`[Firecrawl] POST ${endpoint}`, JSON.stringify(body).slice(0, 500));
+
     const res = await fetch(`${BASE_URL}${endpoint}`, {
       method: "POST",
       headers: {
@@ -83,10 +92,14 @@ export class FirecrawlClient {
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      throw new Error(`Firecrawl API ${endpoint} failed (${res.status}): ${errText.slice(0, 200)}`);
+      const msg = `Firecrawl API ${endpoint} failed (${res.status}): ${errText.slice(0, 500)}`;
+      this.logger?.error?.(`[Firecrawl] ${msg}`);
+      throw new Error(msg);
     }
 
-    return res.json() as Promise<T>;
+    const json = await res.json() as T;
+    this.logger?.debug?.(`[Firecrawl] ${endpoint} OK`);
+    return json;
   }
 
   async search(

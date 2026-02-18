@@ -1,9 +1,9 @@
 import type { ExaClient } from "../clients/exa";
 import type { FirecrawlClient } from "../clients/firecrawl";
 import type { PerplexityClient } from "../clients/perplexity";
-import { parallelServices } from "../utils/parallel";
+import { parallelServices, type Logger } from "../utils/parallel";
 import { mergeResults, rankByRelevance, type SearchResult } from "../utils/dedup";
-import { formatSearchResults, formatErrors } from "../utils/formatters";
+import { formatSearchResults, formatErrors, formatServiceStatus } from "../utils/formatters";
 
 export const SITE_SEARCH_DEF = {
   name: "site_search",
@@ -35,7 +35,8 @@ export function createSiteSearch(
   exa: ExaClient,
   firecrawl: FirecrawlClient,
   perplexity: PerplexityClient,
-  defaultNumResults: number
+  defaultNumResults: number,
+  logger?: Logger
 ) {
   return async (_id: string, params: {
     query: string;
@@ -44,6 +45,8 @@ export function createSiteSearch(
     mapSites?: boolean;
   }) => {
     const numResults = params.numResults ?? defaultNumResults;
+
+    logger?.info?.(`[site_search] query="${params.query}" domains=${params.domains.join(",")}`);
 
     const results = await parallelServices({
       exa: async () => {
@@ -130,7 +133,7 @@ export function createSiteSearch(
 
         return searchResults;
       },
-    });
+    }, logger);
 
     const allResults: SearchResult[] = [];
     if (results.exa) allResults.push(...results.exa);
@@ -139,7 +142,12 @@ export function createSiteSearch(
 
     const merged = rankByRelevance(mergeResults(allResults));
     const header = `## Site Search: ${params.domains.join(", ")}\n\n`;
-    const output = header + formatSearchResults(merged) + formatErrors(results.errors);
+    const status = formatServiceStatus({
+      exa: results.exa !== null,
+      firecrawl: results.firecrawl !== null,
+      perplexity: results.perplexity !== null,
+    });
+    const output = header + status + formatSearchResults(merged) + formatErrors(results.errors);
 
     return { content: [{ type: "text", text: output }] };
   };

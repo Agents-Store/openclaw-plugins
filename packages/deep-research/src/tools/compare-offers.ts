@@ -1,9 +1,9 @@
 import type { ExaClient } from "../clients/exa";
 import type { FirecrawlClient } from "../clients/firecrawl";
 import type { PerplexityClient } from "../clients/perplexity";
-import { parallelServices } from "../utils/parallel";
+import { parallelServices, type Logger } from "../utils/parallel";
 import { mergeResults, rankByRelevance, type SearchResult } from "../utils/dedup";
-import { formatComparison, formatErrors } from "../utils/formatters";
+import { formatComparison, formatErrors, formatServiceStatus } from "../utils/formatters";
 
 export const COMPARE_OFFERS_DEF = {
   name: "compare_offers",
@@ -38,7 +38,8 @@ export const COMPARE_OFFERS_DEF = {
 export function createCompareOffers(
   exa: ExaClient,
   firecrawl: FirecrawlClient,
-  perplexity: PerplexityClient
+  perplexity: PerplexityClient,
+  logger?: Logger
 ) {
   return async (_id: string, params: {
     query: string;
@@ -49,6 +50,8 @@ export function createCompareOffers(
     const numOffers = params.numOffers ?? 30;
     const criteria = params.criteria ?? ["name", "price", "rating", "key_features"];
     const allErrors: string[] = [];
+
+    logger?.info?.(`[compare_offers] query="${params.query}" numOffers=${numOffers}`);
 
     // --- Step 1: Search for offers across all services ---
     const searchResults = await parallelServices({
@@ -102,7 +105,7 @@ export function createCompareOffers(
           })),
         };
       },
-    });
+    }, logger);
 
     allErrors.push(...searchResults.errors);
 
@@ -169,8 +172,15 @@ export function createCompareOffers(
     }
 
     // --- Compile output ---
+    const status = formatServiceStatus({
+      exa: searchResults.exa !== null,
+      firecrawl: searchResults.firecrawl !== null,
+      perplexity: searchResults.perplexity !== null,
+    });
+
     const output: string[] = [
       `# Offer Comparison: ${params.query}\n`,
+      status,
       `**Offers found:** ${merged.length} | **Extracted data:** ${extractedData.length} items\n`,
     ];
 

@@ -1,9 +1,9 @@
 import type { ExaClient } from "../clients/exa";
 import type { FirecrawlClient } from "../clients/firecrawl";
 import type { PerplexityClient } from "../clients/perplexity";
-import { parallelServices } from "../utils/parallel";
+import { parallelServices, type Logger } from "../utils/parallel";
 import { mergeResults, rankByRelevance, type SearchResult } from "../utils/dedup";
-import { formatSearchResults, formatErrors } from "../utils/formatters";
+import { formatSearchResults, formatErrors, formatServiceStatus } from "../utils/formatters";
 
 export const FIND_SIMILAR_DEF = {
   name: "find_similar",
@@ -34,7 +34,8 @@ export function createFindSimilar(
   exa: ExaClient,
   firecrawl: FirecrawlClient,
   perplexity: PerplexityClient,
-  defaultNumResults: number
+  defaultNumResults: number,
+  logger?: Logger
 ) {
   return async (_id: string, params: {
     url: string;
@@ -61,6 +62,8 @@ export function createFindSimilar(
     if (!summary) {
       allErrors.push("Could not extract content from reference URL for similarity search");
     }
+
+    logger?.info?.(`[find_similar] url="${params.url}" summary=${summary.length} chars`);
 
     // --- Step 2: Search for similar content in parallel ---
     const results = await parallelServices({
@@ -128,7 +131,7 @@ export function createFindSimilar(
 
         return searchResults;
       },
-    });
+    }, logger);
 
     allErrors.push(...results.errors);
 
@@ -139,8 +142,15 @@ export function createFindSimilar(
 
     const merged = rankByRelevance(mergeResults(allResults));
 
+    const status = formatServiceStatus({
+      exa: results.exa !== null,
+      firecrawl: results.firecrawl !== null,
+      perplexity: results.perplexity !== null,
+    });
+
     const output = [
       `# Find Similar: [${title}](${params.url})\n`,
+      status,
       summary ? `> ${summary.slice(0, 300)}\n` : "",
       `**Similar results found:** ${merged.length}\n`,
       formatSearchResults(merged, { showContent: false }),

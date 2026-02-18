@@ -1,8 +1,8 @@
 import type { ExaClient } from "../clients/exa";
 import type { FirecrawlClient } from "../clients/firecrawl";
 import type { PerplexityClient } from "../clients/perplexity";
-import { parallelServices } from "../utils/parallel";
-import { formatErrors } from "../utils/formatters";
+import { parallelServices, type Logger } from "../utils/parallel";
+import { formatErrors, formatServiceStatus } from "../utils/formatters";
 
 export const SCRAPE_EXTRACT_DEF = {
   name: "scrape_and_extract",
@@ -37,7 +37,8 @@ export const SCRAPE_EXTRACT_DEF = {
 export function createScrapeAndExtract(
   exa: ExaClient,
   firecrawl: FirecrawlClient,
-  perplexity: PerplexityClient
+  perplexity: PerplexityClient,
+  logger?: Logger
 ) {
   return async (_id: string, params: {
     urls: string[];
@@ -48,6 +49,8 @@ export function createScrapeAndExtract(
     const urls = params.urls.slice(0, 20);
     const formats = (params.formats ?? ["markdown", "summary"]) as any[];
     const allErrors: string[] = [];
+
+    logger?.info?.(`[scrape_and_extract] urls=${urls.length} extractPrompt=${!!params.extractPrompt}`);
 
     const results = await parallelServices({
       exa: async () => {
@@ -99,13 +102,20 @@ export function createScrapeAndExtract(
         const res = await perplexity.search(prompt, { preset: "pro-search" });
         return res;
       },
-    });
+    }, logger);
 
     allErrors.push(...results.errors);
 
     // --- Compile output ---
+    const status = formatServiceStatus({
+      exa: results.exa !== null,
+      firecrawl: results.firecrawl !== null,
+      perplexity: results.perplexity !== null,
+    });
+
     const output: string[] = [
       `# Scrape & Extract: ${urls.length} URLs\n`,
+      status,
     ];
 
     // Exa results

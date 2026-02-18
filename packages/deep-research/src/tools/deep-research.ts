@@ -1,9 +1,9 @@
 import type { ExaClient } from "../clients/exa";
 import type { FirecrawlClient } from "../clients/firecrawl";
 import type { PerplexityClient } from "../clients/perplexity";
-import { parallelServices } from "../utils/parallel";
+import { parallelServices, type Logger } from "../utils/parallel";
 import { mergeResults, rankByRelevance, deduplicateUrls, type SearchResult } from "../utils/dedup";
-import { formatSearchResults, formatErrors } from "../utils/formatters";
+import { formatSearchResults, formatErrors, formatServiceStatus } from "../utils/formatters";
 
 export const DEEP_RESEARCH_DEF = {
   name: "deep_research",
@@ -36,7 +36,8 @@ export function createDeepResearch(
   exa: ExaClient,
   firecrawl: FirecrawlClient,
   perplexity: PerplexityClient,
-  defaultLanguage: string
+  defaultLanguage: string,
+  logger?: Logger
 ) {
   return async (_id: string, params: {
     topic: string;
@@ -53,6 +54,8 @@ export function createDeepResearch(
     // --- Step 1: Initial parallel search ---
     const numResults = depth === "exhaustive" ? 40 : depth === "deep" ? 30 : 20;
     const maxSteps = depth === "exhaustive" ? 8 : depth === "deep" ? 5 : 3;
+
+    logger?.info?.(`[deep_research] topic="${params.topic}" depth=${depth} numResults=${numResults}`);
 
     const step1 = await parallelServices({
       exa: async () => {
@@ -111,7 +114,7 @@ export function createDeepResearch(
 
         return searchResults;
       },
-    });
+    }, logger);
 
     if (step1.exa) allResults.push(...step1.exa);
     if (step1.firecrawl) allResults.push(...step1.firecrawl);
@@ -122,6 +125,7 @@ export function createDeepResearch(
     if ((depth === "deep" || depth === "exhaustive") && params.focusAreas?.length) {
       const focusPromises = params.focusAreas.slice(0, 5).map(async (area) => {
         const subResults = await parallelServices({
+          // Focus area expansion
           exa: async () => {
             const res = await exa.search(`${params.topic} ${area}`, {
               numResults: 15,
@@ -165,7 +169,7 @@ export function createDeepResearch(
               source: "perplexity",
             }));
           },
-        });
+        }, logger);
 
         if (subResults.exa) allResults.push(...subResults.exa);
         if (subResults.firecrawl) allResults.push(...subResults.firecrawl);
@@ -219,8 +223,15 @@ export function createDeepResearch(
     // --- Compile output ---
     const merged = rankByRelevance(mergeResults(allResults));
 
+    const status = formatServiceStatus({
+      exa: step1.exa !== null,
+      firecrawl: step1.firecrawl !== null,
+      perplexity: step1.perplexity !== null,
+    });
+
     const output = [
       `# Deep Research: ${params.topic}\n`,
+      status,
       `**Depth:** ${depth} | **Total unique sources:** ${merged.length} | **Focus areas:** ${params.focusAreas?.join(", ") || "general"}\n`,
       ...sections,
       `\n---\n`,

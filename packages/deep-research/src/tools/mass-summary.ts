@@ -1,9 +1,9 @@
 import type { ExaClient } from "../clients/exa";
 import type { FirecrawlClient } from "../clients/firecrawl";
 import type { PerplexityClient } from "../clients/perplexity";
-import { parallelServices, batchProcess } from "../utils/parallel";
+import { parallelServices, batchProcess, type Logger } from "../utils/parallel";
 import { deduplicateUrls, type SearchResult } from "../utils/dedup";
-import { formatSummary, formatErrors } from "../utils/formatters";
+import { formatSummary, formatErrors, formatServiceStatus } from "../utils/formatters";
 
 export const MASS_SUMMARY_DEF = {
   name: "mass_summary",
@@ -36,7 +36,8 @@ export const MASS_SUMMARY_DEF = {
 export function createMassSummary(
   exa: ExaClient,
   firecrawl: FirecrawlClient,
-  perplexity: PerplexityClient
+  perplexity: PerplexityClient,
+  logger?: Logger
 ) {
   return async (_id: string, params: {
     topic: string;
@@ -58,6 +59,8 @@ export function createMassSummary(
       `${params.topic} guide`,
       `${params.topic} overview`,
     ];
+
+    logger?.info?.(`[mass_summary] topic="${params.topic}" target=${minSources}-${maxSources} sources`);
 
     // Parallel collection from all services with multiple query variations
     const collectionResults = await parallelServices({
@@ -97,7 +100,7 @@ export function createMassSummary(
         );
         return { text: res.text, citations: res.citations };
       },
-    });
+    }, logger);
 
     allErrors.push(...collectionResults.errors);
 
@@ -147,14 +150,16 @@ export function createMassSummary(
       contentBatches.push(trimmedUrls.slice(i, i + 10));
     }
 
-    const exaContents = await batchProcess(contentBatches, 3, async (batch) => {
+    const exaContentsBatch = await batchProcess(contentBatches, 3, async (batch) => {
       return exa.getContents(batch, {
         text: { maxCharacters: 2000 },
         summary: true,
       }).catch(() => null);
-    });
+    }, logger);
 
-    for (const batchResult of exaContents) {
+    allErrors.push(...exaContentsBatch.errors);
+
+    for (const batchResult of exaContentsBatch.results) {
       if (!batchResult) continue;
       for (const r of batchResult.results) {
         const summary = r.summary || r.text?.slice(0, 500);
@@ -193,8 +198,15 @@ export function createMassSummary(
       return { url, title: match?.title || url };
     });
 
+    const status = formatServiceStatus({
+      exa: collectionResults.exa !== null,
+      firecrawl: collectionResults.firecrawl !== null,
+      perplexity: collectionResults.perplexity !== null,
+    });
+
     const output = [
       `# Mass Summary: ${params.topic}\n`,
+      status,
       `**Sources collected:** ${trimmedUrls.length} (target: ${minSources}-${maxSources})\n`,
       formatSummary(finalSummary, sources),
       formatErrors(allErrors),

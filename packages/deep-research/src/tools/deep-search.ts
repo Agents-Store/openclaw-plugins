@@ -1,9 +1,9 @@
 import type { ExaClient } from "../clients/exa";
 import type { FirecrawlClient } from "../clients/firecrawl";
 import type { PerplexityClient } from "../clients/perplexity";
-import { parallelServices } from "../utils/parallel";
+import { parallelServices, type Logger } from "../utils/parallel";
 import { mergeResults, rankByRelevance, type SearchResult } from "../utils/dedup";
-import { formatSearchResults, formatErrors } from "../utils/formatters";
+import { formatSearchResults, formatErrors, formatServiceStatus } from "../utils/formatters";
 
 export const DEEP_SEARCH_DEF = {
   name: "deep_search",
@@ -41,7 +41,8 @@ export function createDeepSearch(
   exa: ExaClient,
   firecrawl: FirecrawlClient,
   perplexity: PerplexityClient,
-  defaultNumResults: number
+  defaultNumResults: number,
+  logger?: Logger
 ) {
   return async (_id: string, params: {
     query: string;
@@ -51,6 +52,8 @@ export function createDeepSearch(
     category?: string;
   }) => {
     const numResults = Math.min(params.numResults ?? defaultNumResults, 50);
+
+    logger?.info?.(`[deep_search] query="${params.query}" numResults=${numResults}`);
 
     const results = await parallelServices({
       exa: async () => {
@@ -115,7 +118,7 @@ export function createDeepSearch(
 
         return searchResults;
       },
-    });
+    }, logger);
 
     // Collect all results from services that succeeded
     const allResults: SearchResult[] = [];
@@ -124,7 +127,12 @@ export function createDeepSearch(
     if (results.perplexity) allResults.push(...results.perplexity);
 
     const merged = rankByRelevance(mergeResults(allResults));
-    const output = formatSearchResults(merged, { showContent: false }) + formatErrors(results.errors);
+    const status = formatServiceStatus({
+      exa: results.exa !== null,
+      firecrawl: results.firecrawl !== null,
+      perplexity: results.perplexity !== null,
+    });
+    const output = status + formatSearchResults(merged, { showContent: false }) + formatErrors(results.errors);
 
     return { content: [{ type: "text", text: output }] };
   };

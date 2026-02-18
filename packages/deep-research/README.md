@@ -59,7 +59,7 @@ Get API keys from:
 ## Commands
 
 - `/research <topic>` — Start a deep research on a topic
-- `/research-status` — Check plugin status and API key configuration
+- `/drstatus` — Check plugin status and API key configuration
 
 ## Architecture
 

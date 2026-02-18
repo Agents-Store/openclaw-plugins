@@ -1,9 +1,9 @@
 import type { ExaClient } from "../clients/exa";
 import type { FirecrawlClient } from "../clients/firecrawl";
 import type { PerplexityClient } from "../clients/perplexity";
-import { parallelServices } from "../utils/parallel";
+import { parallelServices, type Logger } from "../utils/parallel";
 import { mergeResults, rankByRelevance, type SearchResult } from "../utils/dedup";
-import { formatSearchResults, formatErrors } from "../utils/formatters";
+import { formatSearchResults, formatErrors, formatServiceStatus } from "../utils/formatters";
 
 export const DATE_SEARCH_DEF = {
   name: "date_search",
@@ -65,7 +65,8 @@ export function createDateSearch(
   exa: ExaClient,
   firecrawl: FirecrawlClient,
   perplexity: PerplexityClient,
-  defaultNumResults: number
+  defaultNumResults: number,
+  logger?: Logger
 ) {
   return async (_id: string, params: {
     query: string;
@@ -75,6 +76,8 @@ export function createDateSearch(
     numResults?: number;
   }) => {
     const numResults = params.numResults ?? defaultNumResults;
+
+    logger?.info?.(`[date_search] query="${params.query}" range=${params.dateFrom}..${params.dateTo}`);
 
     const results = await parallelServices({
       exa: async () => {
@@ -144,7 +147,7 @@ export function createDateSearch(
 
         return searchResults;
       },
-    });
+    }, logger);
 
     const allResults: SearchResult[] = [];
     if (results.exa) allResults.push(...results.exa);
@@ -153,7 +156,12 @@ export function createDateSearch(
 
     const merged = rankByRelevance(mergeResults(allResults));
     const header = `## Date-filtered Search: ${params.dateFrom} to ${params.dateTo}\n\n`;
-    const output = header + formatSearchResults(merged, { showContent: false }) + formatErrors(results.errors);
+    const status = formatServiceStatus({
+      exa: results.exa !== null,
+      firecrawl: results.firecrawl !== null,
+      perplexity: results.perplexity !== null,
+    });
+    const output = header + status + formatSearchResults(merged, { showContent: false }) + formatErrors(results.errors);
 
     return { content: [{ type: "text", text: output }] };
   };

@@ -42,10 +42,19 @@ export interface PerplexityContentBlock {
   text?: string;
 }
 
+export type Logger = {
+  debug?: (...args: any[]) => void;
+  info?: (...args: any[]) => void;
+  warn?: (...args: any[]) => void;
+  error?: (...args: any[]) => void;
+};
+
 export class PerplexityClient {
-  constructor(private apiKey: string) {}
+  constructor(private apiKey: string, private logger?: Logger) {}
 
   private async request(body: Record<string, any>): Promise<PerplexityResponse> {
+    this.logger?.debug?.(`[Perplexity] POST /v1/responses preset=${body.preset || "default"}`, JSON.stringify(body).slice(0, 500));
+
     const res = await fetch(`${BASE_URL}/v1/responses`, {
       method: "POST",
       headers: {
@@ -57,10 +66,14 @@ export class PerplexityClient {
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      throw new Error(`Perplexity API failed (${res.status}): ${errText.slice(0, 200)}`);
+      const msg = `Perplexity API failed (${res.status}): ${errText.slice(0, 500)}`;
+      this.logger?.error?.(`[Perplexity] ${msg}`);
+      throw new Error(msg);
     }
 
-    return res.json() as Promise<PerplexityResponse>;
+    const json = await res.json() as PerplexityResponse;
+    this.logger?.debug?.(`[Perplexity] OK — status=${json.status}, output items=${json.output?.length ?? 0}`);
+    return json;
   }
 
   async search(query: string, options: PerplexitySearchOptions = {}): Promise<{
@@ -142,6 +155,7 @@ export class PerplexityClient {
       }
     }
 
+    this.logger?.debug?.(`[Perplexity] Parsed: ${text.length} chars text, ${citations.length} citations`);
     return { text, citations };
   }
 }
