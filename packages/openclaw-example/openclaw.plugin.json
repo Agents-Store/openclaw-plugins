@@ -1,0 +1,23 @@
+{
+  "id": "openclaw-example",
+  "name": "Example Plugin",
+  "description": "Demonstrates how to build an OpenClaw plugin",
+  "version": "0.1.0",
+  "skills": ["skills/example"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "greeting": {
+        "type": "string",
+        "default": "Hello from Agents Store!"
+      }
+    }
+  },
+  "uiHints": {
+    "greeting": {
+      "label": "Greeting message",
+      "placeholder": "Hello from Agents Store!"
+    }
+  }
+}

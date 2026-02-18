@@ -1,0 +1,10 @@
+{
+  "name": "openclaw-plugins",
+  "private": true,
+  "description": "OpenClaw plugins by Agents Store",
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint"
+  }
+}

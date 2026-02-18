@@ -1,0 +1,28 @@
+{
+  "name": "@agents-store/openclaw-example",
+  "version": "0.1.0",
+  "description": "Example OpenClaw plugin by Agents Store",
+  "license": "MIT",
+  "author": "Agents Store <hello@agents.store>",
+  "homepage": "https://github.com/Agents-Store/openclaw-plugins/tree/main/packages/openclaw-example",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Agents-Store/openclaw-plugins.git",
+    "directory": "packages/openclaw-example"
+  },
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "agents-store",
+    "example"
+  ],
+  "openclaw": {
+    "extensions": ["./src/index.ts"]
+  },
+  "files": [
+    "src/",
+    "skills/",
+    "openclaw.plugin.json",
+    "README.md"
+  ]
+}
